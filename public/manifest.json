@@ -1,6 +1,6 @@
 {
-  "name": "HomeExpenses",
-  "short_name": "HomeExpenses",
+  "name": "MyHouseExpenses",
+  "short_name": "MyHouseExpenses",
   "description": "Split bills with your housemates",
   "start_url": "/",
   "display": "standalone",

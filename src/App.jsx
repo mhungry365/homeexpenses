@@ -81,7 +81,7 @@ export default function App() {
   if(authState==="create_house") return <OnboardScreen user={session?.user} onDone={refresh}/>;
   if(authState==="pending") return <PendingScreen email={session?.user?.email} house={myHouse} onSignOut={signOut} onRefresh={refresh}/>;
   if(authState==="suspended") return <SuspendedScreen msg="Your account has been suspended by your house admin." onSignOut={signOut}/>;
-  if(authState==="house_suspended") return <SuspendedScreen msg="Your house has been suspended by HomeExpenses. Please contact support." onSignOut={signOut}/>;
+  if(authState==="house_suspended") return <SuspendedScreen msg="Your house has been suspended by MyHouseExpenses. Please contact support." onSignOut={signOut}/>;
   if(authState==="super_admin") return <SuperAdminApp user={session?.user} onSignOut={signOut}/>;
   return <HouseApp myPerson={myPerson} myHouse={myHouse} isAdmin={authState==="house_admin"} onSignOut={signOut}/>;
 }
@@ -93,7 +93,7 @@ function Splash(){
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
       <div style={{textAlign:"center",color:"white"}}>
         <div style={{fontSize:40,marginBottom:12}}>🏠</div>
-        <div style={{fontSize:24,fontWeight:800,letterSpacing:"-0.5px"}}>HomeExpenses</div>
+        <div style={{fontSize:24,fontWeight:800,letterSpacing:"-0.5px"}}>MyHouseExpenses</div>
         <div style={{marginTop:24,width:28,height:28,border:"3px solid rgba(255,255,255,0.2)",borderTopColor:"white",borderRadius:"50%",animation:"spin 0.8s linear infinite",margin:"24px auto 0"}}/>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
@@ -160,7 +160,7 @@ function AuthScreen(){
       <div style={{width:"100%",maxWidth:380}}>
         <div style={{textAlign:"center",marginBottom:36}}>
           <div style={{fontSize:48,marginBottom:12}}>🏠</div>
-          <div style={{fontSize:28,fontWeight:800,color:"white",letterSpacing:"-0.5px"}}>HomeExpenses</div>
+          <div style={{fontSize:28,fontWeight:800,color:"white",letterSpacing:"-0.5px"}}>MyHouseExpenses</div>
           <div style={{fontSize:14,color:"#94a3b8",marginTop:6}}>Split bills with your housemates</div>
         </div>
         <div style={{background:"white",borderRadius:20,padding:"28px 24px"}}>
@@ -247,7 +247,7 @@ function OnboardScreen({user,onDone}){
       <div style={{width:"100%",maxWidth:380}}>
         <div style={{textAlign:"center",marginBottom:32}}>
           <div style={{fontSize:40,marginBottom:10}}>🏠</div>
-          <div style={{fontSize:22,fontWeight:800,color:"white"}}>HomeExpenses</div>
+          <div style={{fontSize:22,fontWeight:800,color:"white"}}>MyHouseExpenses</div>
           <div style={{fontSize:14,color:"#94a3b8",marginTop:6}}>What would you like to do?</div>
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
@@ -486,14 +486,14 @@ function HouseAdminView({house,persons,bills,categories,reload,showToast}){
   const [copied,setCopied]=useState(false);
   const appUrl="https://myhouseexpenses.vercel.app";
   const inviteLink=`${appUrl}?code=${house.join_code}`;
-  const inviteMsg=`Hey! I'm using HomeExpenses to track our shared bills. Join our house "${house.name}" using this link:\n\n${inviteLink}\n\nOr enter the code manually: ${house.join_code}`;
+  const inviteMsg=`Hey! I'm using MyHouseExpenses to track our shared bills. Join our house "${house.name}" using this link:\n\n${inviteLink}\n\nOr enter the code manually: ${house.join_code}`;
 
   const copyLink=async()=>{
     await navigator.clipboard.writeText(inviteLink);
     setCopied(true);setTimeout(()=>setCopied(false),2000);
   };
   const shareWhatsApp=()=>window.open(`https://wa.me/?text=${encodeURIComponent(inviteMsg)}`,"_blank");
-  const shareEmail=()=>window.open(`mailto:?subject=Join our house on HomeExpenses&body=${encodeURIComponent(inviteMsg)}`,"_blank");
+  const shareEmail=()=>window.open(`mailto:?subject=Join our house on MyHouseExpenses&body=${encodeURIComponent(inviteMsg)}`,"_blank");
 
   return(
     <div style={{padding:"0 16px"}}>
@@ -671,17 +671,17 @@ function SuperAdminApp({user,onSignOut}){
   const appUrl="https://myhouseexpenses.vercel.app";
   const [showInvite,setShowInvite]=useState(false);
   const [copied,setCopied]=useState(false);
-  const inviteMsg=`Hey! I'd like you to manage your house expenses using HomeExpenses.\n\nSign up here: ${appUrl}\n\n1. Create an account\n2. Click "Create a House"\n3. Invite your housemates using the join code\n\nIt's free and easy to use!`;
+  const inviteMsg=`Hey! I'd like you to manage your house expenses using MyHouseExpenses.\n\nSign up here: ${appUrl}\n\n1. Create an account\n2. Click "Create a House"\n3. Invite your housemates using the join code\n\nIt's free and easy to use!`;
   const copyLink=async()=>{await navigator.clipboard.writeText(appUrl);setCopied(true);setTimeout(()=>setCopied(false),2000);};
   const shareWhatsApp=()=>window.open(`https://wa.me/?text=${encodeURIComponent(inviteMsg)}`,"_blank");
-  const shareEmail=()=>window.open(`mailto:?subject=Manage your house expenses with HomeExpenses&body=${encodeURIComponent(inviteMsg)}`,"_blank");
+  const shareEmail=()=>window.open(`mailto:?subject=Manage your house expenses with MyHouseExpenses&body=${encodeURIComponent(inviteMsg)}`,"_blank");
 
   return(
     <div style={{fontFamily:"'Inter',system-ui,sans-serif",minHeight:"100vh",background:"#0f172a",color:"white",maxWidth:430,margin:"0 auto",padding:"0 0 40px"}}>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
       <div style={{padding:"20px 20px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"1px solid rgba(255,255,255,0.1)"}}>
         <div>
-          <div style={{fontWeight:800,fontSize:18}}>🏠 HomeExpenses</div>
+          <div style={{fontWeight:800,fontSize:18}}>🏠 MyHouseExpenses</div>
           <div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>Super Admin · {user?.email}</div>
         </div>
         <button onClick={onSignOut} style={{padding:"8px 14px",borderRadius:10,border:"1px solid rgba(255,255,255,0.2)",background:"transparent",color:"white",fontSize:13,cursor:"pointer"}}>Sign out</button>
@@ -698,7 +698,7 @@ function SuperAdminApp({user,onSignOut}){
 
         {showInvite&&(
           <div style={{background:"rgba(255,255,255,0.08)",borderRadius:16,padding:"16px",marginBottom:16,border:"1px solid rgba(255,255,255,0.15)"}}>
-            <div style={{fontSize:13,color:"#94a3b8",marginBottom:12}}>Share HomeExpenses with someone who wants to manage their house:</div>
+            <div style={{fontSize:13,color:"#94a3b8",marginBottom:12}}>Share MyHouseExpenses with someone who wants to manage their house:</div>
             <div style={{background:"rgba(255,255,255,0.05)",borderRadius:12,padding:"14px 16px",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
               <div style={{minWidth:0}}>
                 <div style={{fontSize:11,color:"#94a3b8",fontWeight:600,marginBottom:4}}>APP LINK</div>

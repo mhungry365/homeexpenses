@@ -109,16 +109,49 @@ function AuthScreen(){
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState("");
 
+  // Friendly error messages
+  const friendlyError=(msg)=>{
+    if(!msg) return "Something went wrong. Please try again.";
+    if(msg.includes("Invalid login credentials")) return "❌ Incorrect email or password. Please try again.";
+    if(msg.includes("Email not confirmed")) return "📧 Please confirm your email before logging in.";
+    if(msg.includes("User already registered")) return "⚠️ An account with this email already exists. Try logging in instead.";
+    if(msg.includes("Password should be")) return "🔒 Password must be at least 6 characters long.";
+    if(msg.includes("Unable to validate email")) return "📧 Please enter a valid email address.";
+    if(msg.includes("signup is disabled")) return "⚠️ Sign ups are currently disabled. Contact the admin.";
+    if(msg.includes("network") || msg.includes("fetch")) return "🌐 No internet connection. Please check your connection and try again.";
+    return msg;
+  };
+
+  const validate=()=>{
+    if(!email.trim()) return "Please enter your email address.";
+    if(!email.includes("@")) return "Please enter a valid email address.";
+    if(!password) return "Please enter your password.";
+    if(mode==="signup" && password.length < 6) return "Password must be at least 6 characters.";
+    return null;
+  };
+
   const submit=async()=>{
+    const validationError=validate();
+    if(validationError){setError(validationError);return;}
     setError("");setLoading(true);
     if(mode==="login"){
-      const{error}=await supabase.auth.signInWithPassword({email,password});
-      if(error)setError(error.message);
+      const{error}=await supabase.auth.signInWithPassword({email:email.trim(),password});
+      if(error)setError(friendlyError(error.message));
     } else {
-      const{error}=await supabase.auth.signUp({email,password});
-      if(error)setError(error.message);
+      const{error}=await supabase.auth.signUp({email:email.trim(),password});
+      if(error)setError(friendlyError(error.message));
     }
     setLoading(false);
+  };
+
+  const [showPassword,setShowPassword]=useState(false);
+  const [forgotSent,setForgotSent]=useState(false);
+
+  const forgotPassword=async()=>{
+    if(!email.trim()||!email.includes("@"))return setError("Please enter your email address first.");
+    const{error}=await supabase.auth.resetPasswordForEmail(email.trim(),{redirectTo:"https://homeexpenses.vercel.app"});
+    if(error)setError(friendlyError(error.message));
+    else setForgotSent(true);
   };
 
   return(
@@ -132,15 +165,37 @@ function AuthScreen(){
         </div>
         <div style={{background:"white",borderRadius:20,padding:"28px 24px"}}>
           <h2 style={{margin:"0 0 20px",fontSize:18,fontWeight:700}}>{mode==="login"?"Welcome back":"Get started"}</h2>
+
+          {forgotSent&&<div style={{background:"#f0fdf4",color:"#16a34a",borderRadius:10,padding:"10px 14px",fontSize:13,marginBottom:14,fontWeight:500}}>📧 Password reset email sent! Check your inbox.</div>}
           {error&&<div style={{background:"#fff1f2",color:"#e11d48",borderRadius:10,padding:"10px 14px",fontSize:13,marginBottom:14,fontWeight:500}}>{error}</div>}
+
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            <div><label style={labelStyle}>Email</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@email.com" style={inputStyle} onKeyDown={e=>e.key==="Enter"&&submit()}/></div>
-            <div><label style={labelStyle}>Password</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" style={inputStyle} onKeyDown={e=>e.key==="Enter"&&submit()}/></div>
+            <div>
+              <label style={labelStyle}>Email</label>
+              <input type="email" value={email} onChange={e=>{setEmail(e.target.value);setError("");}} placeholder="you@email.com" style={{...inputStyle,borderColor:error&&!email?"#e11d48":"#e2e8f0"}} onKeyDown={e=>e.key==="Enter"&&submit()}/>
+            </div>
+            <div>
+              <label style={labelStyle}>Password</label>
+              <div style={{position:"relative"}}>
+                <input type={showPassword?"text":"password"} value={password} onChange={e=>{setPassword(e.target.value);setError("");}} placeholder="••••••••" style={{...inputStyle,paddingRight:48,borderColor:error&&!password?"#e11d48":"#e2e8f0"}} onKeyDown={e=>e.key==="Enter"&&submit()}/>
+                <button onClick={()=>setShowPassword(!showPassword)} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",border:"none",background:"transparent",cursor:"pointer",color:"#94a3b8",fontSize:13,fontWeight:500}}>
+                  {showPassword?"Hide":"Show"}
+                </button>
+              </div>
+            </div>
           </div>
+
           <button onClick={submit} disabled={loading} style={{width:"100%",marginTop:20,padding:"14px",borderRadius:14,border:"none",background:"#0f172a",color:"white",fontSize:15,fontWeight:700,cursor:"pointer",opacity:loading?0.7:1}}>
-            {loading?"Please wait…":mode==="login"?"Log In":"Continue"}
+            {loading?"Please wait…":mode==="login"?"Log In":"Create Account"}
           </button>
-          <button onClick={()=>{setMode(mode==="login"?"signup":"login");setError("");}} style={{width:"100%",marginTop:12,padding:"10px",border:"none",background:"transparent",fontSize:14,color:"#64748b",cursor:"pointer"}}>
+
+          {mode==="login"&&(
+            <button onClick={forgotPassword} style={{width:"100%",marginTop:8,padding:"8px",border:"none",background:"transparent",fontSize:13,color:"#94a3b8",cursor:"pointer"}}>
+              Forgot password?
+            </button>
+          )}
+
+          <button onClick={()=>{setMode(mode==="login"?"signup":"login");setError("");setForgotSent(false);}} style={{width:"100%",marginTop:4,padding:"10px",border:"none",background:"transparent",fontSize:14,color:"#64748b",cursor:"pointer"}}>
             {mode==="login"?"New here? Create account":"Already have an account? Log in"}
           </button>
         </div>

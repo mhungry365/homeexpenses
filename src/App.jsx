@@ -879,54 +879,96 @@ function ProfileView({myPerson,onSave,onSignOut,onClose}){
 }
 
 // ── SETTLE UP BUTTON ─────────────────────────────────────────────
-function SettleUpButton({persons,iOwe,myPerson,bills}){
+function SettleUpButton({persons,iOwe,myPerson,bills,myHouse,reload}){
   const [showSheet,setShowSheet]=useState(false);
+  const [settlements,setSettlements]=useState([]);
+  const [paying,setPaying]=useState(null); // person being paid
+  const [marking,setMarking]=useState(false);
 
-  // Find who myPerson owes money to
-  const approved=persons.filter(p=>p.is_approved&&p.id!==myPerson?.id);
+  const approved=persons.filter(p=>p.is_approved);
   const grandTotal=bills.reduce((s,b)=>s+Number(b.amount),0);
-  const share=persons.filter(p=>p.is_approved).length>0?grandTotal/persons.filter(p=>p.is_approved).length:0;
+  const share=approved.length>0?grandTotal/approved.length:0;
 
-  const creditors=approved.map(p=>{
+  const creditors=approved.filter(p=>p.id!==myPerson?.id).map(p=>{
     const pTotal=bills.filter(b=>b.persons?.id===p.id).reduce((s,b)=>s+Number(b.amount),0);
-    const pShare=pTotal-share;
-    return {...p,paidExtra:pShare};
+    return {...p,paidExtra:pTotal-share};
   }).filter(p=>p.paidExtra>0).sort((a,b)=>b.paidExtra-a.paidExtra);
 
-  const openRevolut=(person)=>{
+  const loadSettlements=async()=>{
+    const{data}=await supabase.from("settlements")
+      .select("*, from_person:from_person_id(name,color), to_person:to_person_id(name,color)")
+      .eq("house_id",myHouse.id)
+      .order("settled_at",{ascending:false})
+      .limit(10);
+    setSettlements(data||[]);
+  };
+
+  const openSheet=()=>{ loadSettlements(); setShowSheet(true); };
+
+  const payByRevolut=async(person)=>{
     const amount=Math.min(iOwe,person.paidExtra).toFixed(2);
     if(person.revolut_link){
-      const base=person.revolut_link.replace(/\/$/, "");
-      const url=`${base}/${amount}EUR`;
-      window.open(url,"_blank");
+      const base=person.revolut_link.replace(/\/$/,"");
+      window.open(`${base}/${amount}EUR`,"_blank");
+      // After opening Revolut, ask if they want to mark as paid
+      setPaying({person,amount:parseFloat(amount),method:"revolut"});
     } else {
-      alert(`${person.name} hasn't added their Revolut link yet. Ask them to add it in their profile.`);
+      alert(`${person.name} hasn't added their Revolut link yet.`);
     }
   };
 
+  const markPaid=async(person,amount,method)=>{
+    setMarking(true);
+    await supabase.from("settlements").insert([{
+      house_id:myHouse.id,
+      from_person_id:myPerson.id,
+      to_person_id:person.id,
+      amount:parseFloat(amount),
+      method
+    }]);
+    setMarking(false);
+    setPaying(null);
+    loadSettlements();
+    reload();
+  };
+
+  const methodLabel=(m)=>m==="revolut"?"💜 Revolut":"💵 Cash";
+  const methodColor=(m)=>m==="revolut"?"#7c3aed":"#16a34a";
+
   return(
     <>
-      <button onClick={()=>setShowSheet(true)} style={{flex:1,padding:"13px",borderRadius:12,background:"white",border:"none",color:"#0f172a",fontWeight:700,fontSize:15,cursor:"pointer"}}>Settle Up</button>
+      <button onClick={openSheet} style={{flex:1,padding:"13px",borderRadius:12,background:"white",border:"none",color:"#0f172a",fontWeight:700,fontSize:15,cursor:"pointer"}}>Settle Up</button>
 
       {showSheet&&(
-        <div onClick={()=>setShowSheet(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200,display:"flex",alignItems:"flex-end"}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:"white",borderRadius:"24px 24px 0 0",padding:"24px 20px",width:"100%",maxHeight:"80vh",overflowY:"auto"}}>
+        <div onClick={()=>{setShowSheet(false);setPaying(null);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200,display:"flex",alignItems:"flex-end"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"white",borderRadius:"24px 24px 0 0",padding:"24px 20px",width:"100%",maxHeight:"85vh",overflowY:"auto"}}>
             <div style={{width:40,height:4,borderRadius:2,background:"#e2e8f0",margin:"0 auto 20px"}}/>
             <h2 style={{margin:"0 0 6px",fontSize:20,fontWeight:700}}>Settle Up</h2>
-            <p style={{margin:"0 0 20px",fontSize:13,color:"#64748b"}}>Pay via Revolut instantly</p>
+            <p style={{margin:"0 0 20px",fontSize:13,color:"#64748b"}}>Choose how you want to pay</p>
 
+            {/* Confirm payment after Revolut */}
+            {paying&&(
+              <div style={{background:"#f0f7ff",borderRadius:14,padding:"16px",marginBottom:16,border:"1.5px solid #bfdbfe"}}>
+                <div style={{fontWeight:700,fontSize:14,marginBottom:6}}>Did you send the payment?</div>
+                <div style={{fontSize:13,color:"#64748b",marginBottom:12}}>Mark as paid so your housemates know it's settled.</div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>markPaid(paying.person,paying.amount,paying.method)} disabled={marking} style={{flex:1,padding:"11px",borderRadius:10,border:"none",background:"#0f172a",color:"white",fontWeight:700,fontSize:14,cursor:"pointer"}}>
+                    {marking?"Saving…":"✓ Yes, mark as paid"}
+                  </button>
+                  <button onClick={()=>setPaying(null)} style={{padding:"11px 14px",borderRadius:10,border:"1.5px solid #e2e8f0",background:"white",fontWeight:600,fontSize:14,cursor:"pointer"}}>Not yet</button>
+                </div>
+              </div>
+            )}
+
+            {/* Who you owe */}
             {iOwe<=0?(
-              <div style={{textAlign:"center",padding:"2rem",background:"#f0fdf4",borderRadius:14}}>
+              <div style={{textAlign:"center",padding:"2rem",background:"#f0fdf4",borderRadius:14,marginBottom:16}}>
                 <div style={{fontSize:32,marginBottom:8}}>🎉</div>
                 <div style={{fontWeight:700,fontSize:16,color:"#16a34a"}}>You're all settled up!</div>
                 <div style={{fontSize:13,color:"#64748b",marginTop:4}}>You don't owe anyone anything.</div>
               </div>
-            ):creditors.length===0?(
-              <div style={{textAlign:"center",padding:"2rem",background:"#f8fafc",borderRadius:14}}>
-                <div style={{fontSize:13,color:"#64748b"}}>No one to settle with right now.</div>
-              </div>
             ):(
-              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:20}}>
                 {creditors.map(p=>{
                   const amount=Math.min(iOwe,p.paidExtra);
                   return(
@@ -935,26 +977,46 @@ function SettleUpButton({persons,iOwe,myPerson,bills}){
                         <div style={{width:42,height:42,borderRadius:"50%",background:p.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:"white"}}>{initials(p.name)}</div>
                         <div style={{flex:1}}>
                           <div style={{fontWeight:700,fontSize:15}}>{p.name}</div>
-                          <div style={{fontSize:12,color:"#64748b"}}>You owe them <span style={{fontWeight:700,color:"#e11d48"}}>{fmt(amount)}</span></div>
+                          <div style={{fontSize:12,color:"#64748b"}}>You will pay <span style={{fontWeight:700,color:"#e11d48"}}>{fmt(amount)}</span></div>
                         </div>
                       </div>
-                      {p.revolut_link?(
-                        <button onClick={()=>openRevolut(p)} style={{width:"100%",padding:"12px",borderRadius:12,border:"none",background:"#0666EB",color:"white",fontWeight:700,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-1.97 1.97a3.828 3.828 0 010 5.414l1.97 1.97A6.789 6.789 0 0117.562 8.248zM12 15.827a3.828 3.828 0 110-7.655 3.828 3.828 0 010 7.655z"/></svg>
-                          Pay {fmt(amount)} via Revolut
+                      {/* Payment options */}
+                      <div style={{display:"flex",gap:8}}>
+                        {/* Cash */}
+                        <button onClick={()=>markPaid(p,amount,"cash")} disabled={marking} style={{flex:1,padding:"11px",borderRadius:10,border:"none",background:"#16a34a",color:"white",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                          💵 Paid Cash
                         </button>
-                      ):(
-                        <div style={{padding:"10px 14px",borderRadius:10,background:"#fff1f2",fontSize:12,color:"#e11d48",fontWeight:500,textAlign:"center"}}>
-                          {p.name} hasn't added their Revolut link yet
-                        </div>
-                      )}
+                        {/* Revolut */}
+                        <button onClick={()=>payByRevolut(p)} style={{flex:1,padding:"11px",borderRadius:10,border:"none",background:"#7c3aed",color:"white",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                          💜 Pay Revolut
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
               </div>
             )}
 
-            <button onClick={()=>setShowSheet(false)} style={{width:"100%",marginTop:16,padding:"13px",borderRadius:12,border:"1.5px solid #e2e8f0",background:"white",fontSize:15,fontWeight:600,cursor:"pointer",color:"#475569"}}>Close</button>
+            {/* Settlement history */}
+            {settlements.length>0&&(
+              <>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.1em",color:"#94a3b8",marginBottom:10}}>RECENT SETTLEMENTS</div>
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {settlements.map(s=>(
+                    <div key={s.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"#f8fafc",borderRadius:10}}>
+                      <div style={{width:28,height:28,borderRadius:"50%",background:s.from_person?.color||"#94a3b8",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"white"}}>{initials(s.from_person?.name||"?")}</div>
+                      <div style={{flex:1,fontSize:13}}>
+                        <span style={{fontWeight:600}}>{s.from_person?.name}</span> paid <span style={{fontWeight:600}}>{s.to_person?.name}</span>
+                      </div>
+                      <span style={{fontSize:11,fontWeight:600,color:methodColor(s.method),background:s.method==="revolut"?"#f3e8ff":"#f0fdf4",padding:"3px 8px",borderRadius:99}}>{methodLabel(s.method)}</span>
+                      <span style={{fontFamily:"monospace",fontWeight:700,fontSize:13}}>{fmt(s.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <button onClick={()=>{setShowSheet(false);setPaying(null);}} style={{width:"100%",marginTop:16,padding:"13px",borderRadius:12,border:"1.5px solid #e2e8f0",background:"white",fontSize:15,fontWeight:600,cursor:"pointer",color:"#475569"}}>Close</button>
           </div>
         </div>
       )}
@@ -995,7 +1057,7 @@ function BillsView({bills,persons,categories,myPerson,reload,showToast,onAdd}){
           </div>
         </div>
         <div style={{display:"flex",gap:10}}>
-          <SettleUpButton persons={persons} iOwe={iOwe} myPerson={myPerson} bills={bills}/>
+          <SettleUpButton persons={persons} iOwe={iOwe} myPerson={myPerson} bills={bills} myHouse={myHouse} reload={reload}/>
           <button style={{flex:1,padding:"13px",borderRadius:12,background:"#1e293b",border:"none",color:"white",fontWeight:700,fontSize:15,cursor:"pointer"}}>Remind All</button>
         </div>
       </div>

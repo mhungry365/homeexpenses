@@ -905,16 +905,17 @@ function SettleUpButton({persons,iOwe,myPerson,bills,myHouse,reload}){
 
   const openSheet=()=>{ loadSettlements(); setShowSheet(true); };
 
-  const payByRevolut=async(person)=>{
+  const payByRevolut=(person)=>{
     const amount=Math.min(iOwe,person.paidExtra).toFixed(2);
+    // If they have a revolut link use it, otherwise just open Revolut app
     if(person.revolut_link){
       const base=person.revolut_link.replace(/\/$/,"");
       window.open(`${base}/${amount}EUR`,"_blank");
-      // After opening Revolut, ask if they want to mark as paid
-      setPaying({person,amount:parseFloat(amount),method:"revolut"});
     } else {
-      alert(`${person.name} hasn't added their Revolut link yet.`);
+      // Open Revolut app directly
+      window.open("https://revolut.com/app","_blank");
     }
+    setPaying({person,amount:parseFloat(amount),method:"revolut"});
   };
 
   const markPaid=async(person,amount,method)=>{
@@ -944,7 +945,7 @@ function SettleUpButton({persons,iOwe,myPerson,bills,myHouse,reload}){
           <div onClick={e=>e.stopPropagation()} style={{background:"white",borderRadius:"24px 24px 0 0",padding:"24px 20px",width:"100%",maxHeight:"85vh",overflowY:"auto"}}>
             <div style={{width:40,height:4,borderRadius:2,background:"#e2e8f0",margin:"0 auto 20px"}}/>
             <h2 style={{margin:"0 0 6px",fontSize:20,fontWeight:700}}>Settle Up</h2>
-            <p style={{margin:"0 0 20px",fontSize:13,color:"#64748b"}}>Choose how you want to pay</p>
+            <p style={{margin:"0 0 20px",fontSize:13,color:"#64748b"}}>Choose how you want to settle up</p>
 
             {/* Confirm payment after Revolut */}
             {paying&&(
@@ -982,11 +983,9 @@ function SettleUpButton({persons,iOwe,myPerson,bills,myHouse,reload}){
                       </div>
                       {/* Payment options */}
                       <div style={{display:"flex",gap:8}}>
-                        {/* Cash */}
                         <button onClick={()=>markPaid(p,amount,"cash")} disabled={marking} style={{flex:1,padding:"11px",borderRadius:10,border:"none",background:"#16a34a",color:"white",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
                           💵 Paid Cash
                         </button>
-                        {/* Revolut */}
                         <button onClick={()=>payByRevolut(p)} style={{flex:1,padding:"11px",borderRadius:10,border:"none",background:"#7c3aed",color:"white",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
                           💜 Pay Revolut
                         </button>
@@ -1355,4 +1354,3 @@ function EditBillForm({bill,persons,categories,onSave,onCancel}){
     </div>
   );
 }
-// updated Thu 30 Apr 2026 19:50:52 IST
